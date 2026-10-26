@@ -143,7 +143,7 @@
       "label": "latest()",
       "file_type": "code",
       "source_file": "frontend/e2e/discovery.spec.js",
-      "source_location": "L21",
+      "source_location": "L24",
       "_origin": "ast"
     },
     {
@@ -266,6 +266,14 @@
       "file_type": "code",
       "source_file": "frontend/e2e/preflight.spec.js",
       "source_location": "L10",
+      "_origin": "ast"
+    },
+    {
+      "id": "e2e_preflight_spec_tabto",
+      "label": "tabTo()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/preflight.spec.js",
+      "source_location": "L36",
       "_origin": "ast"
     },
     {
@@ -1364,7 +1372,7 @@
       "label": "get()",
       "file_type": "code",
       "source_file": "frontend/src/test/posts.test.jsx",
-      "source_location": "L216",
+      "source_location": "L229",
       "_origin": "ast"
     },
     {
@@ -1991,7 +1999,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/discovery.spec.js",
-      "source_location": "L21",
+      "source_location": "L24",
       "weight": 1.0
     },
     {
@@ -2140,6 +2148,15 @@
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/preflight.spec.js",
       "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "e2e_preflight_spec",
+      "target": "e2e_preflight_spec_tabto",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/preflight.spec.js",
+      "source_location": "L36",
       "weight": 1.0
     },
     {
@@ -3534,7 +3551,7 @@
     },
     {
       "source": "pages_readblog",
-      "target": "utils_storage_getposts",
+      "target": "utils_storage_readposts",
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -3978,7 +3995,7 @@
     },
     {
       "source": "pages_writeblog",
-      "target": "utils_storage_getposts",
+      "target": "utils_storage_readposts",
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -5085,7 +5102,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/test/posts.test.jsx",
-      "source_location": "L216",
+      "source_location": "L229",
       "weight": 1.0
     },
     {
@@ -6319,7 +6336,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/components/Navbar.jsx",
-      "source_location": "L35",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -6401,7 +6418,7 @@
     },
     {
       "source": "pages_readblog_readblog",
-      "target": "utils_storage_getposts",
+      "target": "utils_storage_readposts",
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -6418,7 +6435,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/pages/ReadBlog.jsx",
-      "source_location": "L45",
+      "source_location": "L53",
       "weight": 1.0
     },
     {
@@ -6429,12 +6446,12 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/pages/ReadBlog.jsx",
-      "source_location": "L60",
+      "source_location": "L68",
       "weight": 1.0
     },
     {
       "source": "pages_writeblog_writeblog",
-      "target": "utils_storage_getposts",
+      "target": "utils_storage_readposts",
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -6451,7 +6468,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/pages/WriteBlog.jsx",
-      "source_location": "L50",
+      "source_location": "L54",
       "weight": 1.0
     },
     {
@@ -6599,7 +6616,7 @@
     }
   ],
   "metadata": {
-    "built_at": "2026-10-26T09:49:52.228872+00:00",
+    "built_at": "2026-10-26T10:15:55.035908+00:00",
     "version": "graph_update-v1",
     "codebase_root": "/data/artifacts-v2/T011RNFvLqRR0008726102608153529/developer",
     "force": true,
