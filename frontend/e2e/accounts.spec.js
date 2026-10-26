@@ -22,6 +22,8 @@ test('register, persist on reload, sign out, sign in case-insensitively and reje
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page).toHaveURL(/\/blogs$/);
   await expect(page.getByRole('heading', { name: 'Welcome, Browser Reader.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Reader home', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Reader home' }).getByRole('link', { name: 'Write', exact: true })).toBeVisible();
   const account = await page.evaluate(() => JSON.parse(localStorage.getItem('writespace_users'))[0]);
   expect(account).toMatchObject({ displayName: 'Browser Reader', username: 'reader-demo', role: 'user', password: 'x' });
   expect(account.id).toMatch(/^[0-9a-f-]{36}$/);

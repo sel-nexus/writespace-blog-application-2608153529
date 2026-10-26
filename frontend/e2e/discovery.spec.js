@@ -93,7 +93,7 @@ test('legacy invalid dates remain in stable order after valid dates', async ({ p
 });
 
 for (const role of ['user', 'admin']) {
-  test(`restored ${role} stays on / with appropriate preview links and activated interim role-home CTA`, async ({ page, browserErrors }) => {
+  test(`restored ${role} stays on / with appropriate preview links and activated role-home CTA`, async ({ page, browserErrors }) => {
     await seedPosts(page);
     await page.addInitScript((role) => localStorage.setItem('writespace_session', JSON.stringify({
       userId: 'reader-id', username: 'reader', displayName: 'Local Reader', role,
@@ -103,12 +103,18 @@ for (const role of ['user', 'admin']) {
     await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Get Started Free' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Start Reading' })).toHaveCount(0);
-    // Detail pages are a later slice: prove the link contract without asserting unimplemented detail UI.
+    // The signed-in preview points to the real post reader; role-home behavior remains independently covered.
     await expect(latest(page).getByRole('link', { name: 'Equal first', exact: true })).toHaveAttribute('href', '/blog/equal-a');
     await expect(page.getByRole('navigation', { name: 'Footer navigation' }).getByRole('link', { name: 'Sign in' })).toHaveCount(0);
     await page.getByRole('link', { name: role === 'admin' ? 'Go to Admin Home' : 'Go to Reader Home', exact: true }).click();
     await expect(page).toHaveURL(role === 'admin' ? /\/admin$/ : /\/blogs$/);
     await expect(page.getByRole('heading', { name: role === 'admin' ? 'Administrator home' : 'Reader home', exact: true })).toBeVisible();
+    if (role === 'user') {
+      await expect(page.getByTestId('all-posts').getByRole('article')).toHaveCount(posts.length);
+      await page.getByRole('link', { name: 'Equal first', exact: true }).click();
+      await expect(page).toHaveURL(/\/blog\/equal-a$/);
+      expect(await page.getByTestId('post-content').textContent()).toBe(posts[2].content);
+    }
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();

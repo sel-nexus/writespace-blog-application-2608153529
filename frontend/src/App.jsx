@@ -1,4 +1,4 @@
-/** Compose public discovery, account routes and interim role homes with local session state. */
+/** Compose discovery, accounts and posts while retaining the interim administrator home. */
 import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { getSession, roleHome } from './utils/auth';
@@ -10,8 +10,11 @@ import { textLink } from './components/FormField';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LandingPage from './pages/LandingPage';
+import Home from './pages/Home';
+import ReadBlog from './pages/ReadBlog';
+import WriteBlog from './pages/WriteBlog';
 
-/** Show the persisted identity without inventing later blog or administration pages. @returns {JSX.Element} */
+/** Keep the interim administrator identity view until the administration slice lands. @returns {JSX.Element} */
 function RoleHome({ session }) {
   return (
     <section className="mx-auto max-w-3xl space-y-6 py-12" aria-labelledby="home-heading">
@@ -27,7 +30,7 @@ function RoleHome({ session }) {
         </div>
       </div>
       <p className="text-lg text-foreground-muted">
-        Your account and session are ready in this browser. This account slice does not yet include reading, writing or account administration.
+        Your account and session are ready in this browser. Local account administration is not yet available.
       </p>
       {session.role === 'admin' && (
         <Link to="/blogs" className={textLink}>Visit reader home</Link>
@@ -83,7 +86,28 @@ export default function App() {
           <Route path="/blogs" element={
             <ProtectedRoute session={session}>
               {session && (
-                <RoleHome session={session} />
+                <Home session={session} />
+              )}
+            </ProtectedRoute>
+          } />
+          <Route path="/blog/:id" element={
+            <ProtectedRoute session={session}>
+              {session && (
+                <ReadBlog key={pathname} session={session} />
+              )}
+            </ProtectedRoute>
+          } />
+          <Route path="/write" element={
+            <ProtectedRoute session={session}>
+              {session && (
+                <WriteBlog key={pathname} session={session} />
+              )}
+            </ProtectedRoute>
+          } />
+          <Route path="/edit/:id" element={
+            <ProtectedRoute session={session}>
+              {session && (
+                <WriteBlog key={pathname} session={session} />
               )}
             </ProtectedRoute>
           } />

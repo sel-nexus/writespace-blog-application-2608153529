@@ -252,7 +252,7 @@ describe('LandingPage and the real App root route', () => {
     expect(landing()).toBeInTheDocument();
   });
 
-  it.each(['user', 'admin'])('keeps a restored %s on landing and activates its interim role-home CTA', async (role) => {
+  it.each(['user', 'admin'])('keeps a restored %s on landing and activates its role-home CTA', async (role) => {
     const identity = { ...session, role };
     setSession(identity);
     savePosts([post('member')]);
@@ -270,6 +270,13 @@ describe('LandingPage and the real App root route', () => {
       .toHaveAttribute('href', role === 'admin' ? '/admin' : '/blogs');
     await userEvent.click(screen.getByRole('link', { name: role === 'admin' ? 'Go to Admin Home' : 'Go to Reader Home' }));
     expect(screen.getByRole('heading', { name: role === 'admin' ? 'Administrator home' : 'Reader home' })).toBeInTheDocument();
+    if (role === 'user') {
+      expect(screen.getByRole('heading', { name: 'Welcome, Local Reader.' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Story member' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('link', { name: 'Story member' }));
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/blog/member');
+      expect(screen.getByTestId('post-content').textContent).toBe('Content for member');
+    }
     expect(getSession()).toEqual(identity);
   });
 

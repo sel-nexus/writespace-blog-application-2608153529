@@ -457,6 +457,8 @@ describe('fields, avatars, navigation and forms', () => {
     );
     expect(auth.getSession()).toEqual(session);
     expect(screen.getByRole('heading', { name: 'Reader home' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome, Demo Reader.' })).toBeInTheDocument();
+    expect(screen.getByText('No local posts to read yet.')).toBeInTheDocument();
     const remove = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => { throw new Error('failure'); });
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Sign-out did not complete');

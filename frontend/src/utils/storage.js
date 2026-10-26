@@ -109,9 +109,14 @@ export function getUsers() {
   return result.ok ? result.value : [];
 }
 
+/** Read posts with diagnostics so mutations never repair unreadable records. @returns {Result<Post[]>} */
+export function readPosts() {
+  return readStored(POSTS_KEY, isPosts, []);
+}
+
 /** Read safe posts; failures leave persisted bytes untouched. @returns {Post[]} */
 export function getPosts() {
-  const result = readStored(POSTS_KEY, isPosts, []);
+  const result = readPosts();
   return result.ok ? result.value : [];
 }
 
@@ -120,7 +125,7 @@ export function saveUsers(users) {
   return writeStored(USERS_KEY, users, isUsers);
 }
 
-/** Save a supported post array, without implementing post CRUD. @returns {Result<Post[]>} */
+/** Save a supported post array. @param {Post[]} posts Records. @returns {Result<Post[]>} */
 export function savePosts(posts) {
   return writeStored(POSTS_KEY, posts, isPosts);
 }
@@ -154,4 +159,105 @@ export function createUser(input, users) {
   }
   const saved = saveUsers([...collection, user]);
   return saved.ok ? { ok: true, value: user } : saved;
+}
+
+/** Validate post actors without a reverse dependency on auth, which imports this module.
+ * @param {*} session Untrusted caller identity, using the same full Session contract as auth.
+ * @returns {boolean} Only complete supported user/admin identities are accepted.
+ */
+function isSession(session) {
+  return exactRecord(session, ['userId', 'username', 'displayName', 'role'])
+    && ['user', 'admin'].includes(session.role);
+}
+
+/** Recheck the admin/owner invariant at the persistence boundary without importing permissions.
+ * @param {import('./auth').Session} session Validated local identity.
+ * @param {Post} post Validated stored target.
+ * @returns {boolean} Matches the UI's canManagePost rule; neither is server authorization.
+ */
+function canManagePost(session, post) {
+  return isSession(session) && isPost(post)
+    && (session.role === 'admin' || post.authorId === session.userId);
+}
+
+/** Read the authoritative persisted list, validating any caller snapshot but never trusting stale ownership.
+ * @param {Post[]} [posts] Optional supported snapshot; no cross-tab lock or merge is promised.
+ * @returns {Result<Post[]>} Unreadable persisted records are never overwritten.
+ */
+function mutationPosts(posts) {
+  const current = readPosts();
+  if (!current.ok) return current;
+  if (posts !== undefined && !isPosts(posts)) return failure('shape', 'The local post list has an unsupported format.');
+  return current;
+}
+
+/** Create and persist a post using only session-derived authorship.
+ * @param {{title:string,content:string}} input Required plain text; entered whitespace is retained.
+ * @param {import('./auth').Session} session Current local identity.
+ * @param {Post[]} [posts] Supported snapshot.
+ * @returns {Result<Post>} No success is returned before persistence completes.
+ */
+export function createPost(input, session, posts) {
+  if (!input || !requiredText(input.title) || !requiredText(input.content)) {
+    return failure('invalid', 'Title and content are required.');
+  }
+  if (!isSession(session)) return failure('invalid', 'A valid local session is required. Nothing was saved.');
+  const current = mutationPosts(posts);
+  if (!current.ok) return current;
+  let post;
+  try {
+    post = {
+      id: crypto.randomUUID(), title: input.title, content: input.content,
+      createdAt: new Date().toISOString(), authorId: session.userId, authorName: session.displayName,
+    };
+  } catch {
+    return failure('unavailable', 'A local post identity could not be created. Nothing was saved.');
+  }
+  if (current.value.some((record) => record.id === post.id)) {
+    return failure('duplicate', 'A local post identity already exists. Nothing was saved.');
+  }
+  const saved = savePosts([...current.value, post]);
+  return saved.ok ? { ok: true, value: post } : saved;
+}
+
+/** Persist only title/content on a permitted existing post.
+ * @param {{postId:string,title:string,content:string}} input Target and editable text.
+ * @param {import('./auth').Session} session Current local identity.
+ * @param {Post[]} [posts] Supported snapshot.
+ * @returns {Result<Post>} Missing, forbidden, invalid and failed-write outcomes never mutate records.
+ */
+export function updatePost(input, session, posts) {
+  if (!input || !requiredText(input.postId) || !requiredText(input.title) || !requiredText(input.content)) {
+    return failure('invalid', 'Post ID, title and content are required.');
+  }
+  if (!isSession(session)) return failure('invalid', 'A valid local session is required. Nothing was saved.');
+  const current = mutationPosts(posts);
+  if (!current.ok) return current;
+  const post = current.value.find((record) => record.id === input.postId);
+  if (!post) return failure('notFound', 'Post not found.');
+  if (!canManagePost(session, post)) return failure('forbidden', 'This post cannot be edited by this account.');
+  const updated = { ...post, title: input.title, content: input.content };
+  const saved = savePosts(current.value.map((record) => record.id === input.postId ? updated : record));
+  return saved.ok ? { ok: true, value: updated } : saved;
+}
+
+/** Delete a permitted target only after explicit confirmation.
+ * @param {{postId:string,confirmed:boolean}} input Target and activated confirmation outcome.
+ * @param {import('./auth').Session} session Current local identity.
+ * @param {Post[]} [posts] Supported snapshot.
+ * @returns {Result<{deleted:true,postId:string}|{deleted:false,reason:'cancelled'}>} Cancel is non-mutating success.
+ */
+export function deletePost(input, session, posts) {
+  if (!input || !requiredText(input.postId) || typeof input.confirmed !== 'boolean') {
+    return failure('invalid', 'Post ID and confirmation are required.');
+  }
+  if (!isSession(session)) return failure('invalid', 'A valid local session is required. Nothing was saved.');
+  const current = mutationPosts(posts);
+  if (!current.ok) return current;
+  const post = current.value.find((record) => record.id === input.postId);
+  if (!post) return failure('notFound', 'Post not found.');
+  if (!canManagePost(session, post)) return failure('forbidden', 'This post cannot be deleted by this account.');
+  if (!input.confirmed) return { ok: true, value: { deleted: false, reason: 'cancelled' } };
+  const saved = savePosts(current.value.filter((record) => record.id !== input.postId));
+  return saved.ok ? { ok: true, value: { deleted: true, postId: input.postId } } : saved;
 }

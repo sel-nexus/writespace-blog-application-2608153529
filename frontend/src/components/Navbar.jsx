@@ -54,6 +54,9 @@ export function Navbar({ session, onSessionChange }) {
           <NavLink to="/blogs" className={navClass} onClick={() => setOpen(false)}>
             Reader home
           </NavLink>
+          <NavLink to="/write" className={navClass} onClick={() => setOpen(false)}>
+            Write
+          </NavLink>
           {session.role === 'admin' && (
             <NavLink to="/admin" className={navClass} onClick={() => setOpen(false)}>
               Admin home
