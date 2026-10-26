@@ -1,0 +1,37 @@
+{
+  "name": "writespace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node node_modules/vite/bin/vite.js",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "preview": "node node_modules/vite/bin/vite.js preview",
+    "test": "node node_modules/vitest/vitest.mjs run",
+    "coverage": "node node_modules/vitest/vitest.mjs run --coverage",
+    "e2e": "node node_modules/@playwright/test/cli.js test"
+  },
+  "dependencies": {
+    "@fontsource/playfair-display": "5.1.1",
+    "@fontsource/source-sans-3": "5.1.1",
+    "prop-types": "15.8.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.30.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.2.0",
+    "@testing-library/user-event": "14.6.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "4.1.12",
+    "autoprefixer": "10.4.21",
+    "jsdom": "26.0.0",
+    "postcss": "8.5.31",
+    "tailwindcss": "3.4.17",
+    "vite": "6.4.5",
+    "vitest": "4.1.12"
+  }
+}
