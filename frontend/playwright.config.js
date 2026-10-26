@@ -6,7 +6,9 @@ const port = process.env.E2E_PORT || new URL(baseURL).port || '5173';
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
   use: { baseURL, trace: 'retain-on-failure', browserName: 'chromium' },
   webServer: {
     command: `node node_modules/vite/bin/vite.js --host 0.0.0.0 --port ${port} --strictPort`,

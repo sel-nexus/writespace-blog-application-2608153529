@@ -58,9 +58,14 @@ export function Navbar({ session, onSessionChange }) {
             Write
           </NavLink>
           {session.role === 'admin' && (
-            <NavLink to="/admin" className={navClass} onClick={() => setOpen(false)}>
-              Admin home
-            </NavLink>
+            <>
+              <NavLink to="/admin" className={navClass} onClick={() => setOpen(false)}>
+                Admin home
+              </NavLink>
+              <NavLink to="/users" className={navClass} onClick={() => setOpen(false)}>
+                Users
+              </NavLink>
+            </>
           )}
           <div className="flex items-center gap-3 px-4 py-2">
             <Avatar displayName={session.displayName} />

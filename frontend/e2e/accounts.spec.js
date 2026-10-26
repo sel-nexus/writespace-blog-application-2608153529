@@ -78,7 +78,7 @@ test('required login errors and invalid credentials do not sign in; actual admin
   const identity = await page.evaluate(() => JSON.parse(localStorage.getItem('writespace_session')));
   expect(identity).toEqual({ userId: 'builtin-admin', username: 'admin', displayName: 'Administrator', role: 'admin' });
   expect(await page.evaluate(() => localStorage.getItem('writespace_users'))).toBeNull();
-  await page.getByRole('link', { name: 'Visit reader home' }).click();
+  await page.getByRole('link', { name: 'Reader home', exact: true }).click();
   await expect(page).toHaveURL(/\/blogs$/);
   await page.getByRole('link', { name: 'Admin home', exact: true }).click();
   await page.reload();

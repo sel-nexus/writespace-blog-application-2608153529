@@ -241,6 +241,35 @@ export function updatePost(input, session, posts) {
   return saved.ok ? { ok: true, value: updated } : saved;
 }
 
+/** Delete an eligible local account after explicit confirmation.
+ * @param {{targetUserId:string,confirmed:boolean,isBuiltIn:boolean}} input Activated target and confirmation.
+ * @param {import('./auth').Session} actor Complete current administrator identity.
+ * @param {User[]} [users] Validated snapshot; persisted records remain authoritative.
+ * @returns {Result<{deleted:true,userId:string}|{deleted:false,reason:'cancelled'}>} No write on failure or cancellation.
+ */
+export function deleteUser(input, actor, users) {
+  if (!input || !requiredText(input.targetUserId) || typeof input.confirmed !== 'boolean'
+    || typeof input.isBuiltIn !== 'boolean') {
+    return failure('invalid', 'Account ID, confirmation and source identity flag are required.');
+  }
+  if (!isSession(actor)) return failure('invalid', 'A valid local session is required. Nothing was saved.');
+  if (actor.role !== 'admin') return failure('forbidden', 'Only an administrator can manage local accounts.');
+  // auth imports storage: keep the source identity ID here without introducing a circular dependency.
+  if (input.targetUserId === 'builtin-admin' || input.isBuiltIn) {
+    return failure('protected', 'The built-in administrator cannot be deleted.');
+  }
+  if (input.targetUserId === actor.userId) {
+    return failure('protected', 'The active administrator cannot delete itself.');
+  }
+  const current = readUsers();
+  if (!current.ok) return current;
+  if (users !== undefined && !isUsers(users)) return failure('shape', 'The local account list has an unsupported format.');
+  if (!current.value.some((user) => user.id === input.targetUserId)) return failure('notFound', 'Account not found.');
+  if (!input.confirmed) return { ok: true, value: { deleted: false, reason: 'cancelled' } };
+  const saved = saveUsers(current.value.filter((user) => user.id !== input.targetUserId));
+  return saved.ok ? { ok: true, value: { deleted: true, userId: input.targetUserId } } : saved;
+}
+
 /** Delete a permitted target only after explicit confirmation.
  * @param {{postId:string,confirmed:boolean}} input Target and activated confirmation outcome.
  * @param {import('./auth').Session} session Current local identity.

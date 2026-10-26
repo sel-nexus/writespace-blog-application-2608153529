@@ -131,7 +131,8 @@ test('another registered author can read but not manage; built-in admin can crea
   await page.getByLabel('Password', { exact: true }).fill('admin');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Administrator home', exact: true })).toBeVisible();
-  await expect(nav(page).getByRole('link', { name: 'Users', exact: true })).toHaveCount(0);
+  await expect(nav(page).getByRole('link', { name: 'Users', exact: true })).toBeVisible();
+  await expect(nav(page).getByRole('link', { name: 'Users', exact: true })).toHaveAttribute('href', '/users');
   await nav(page).getByRole('link', { name: 'Write', exact: true }).click();
   await fillPost(page, 'Administrator story', 'Administrator body.');
   await page.getByRole('button', { name: 'Save post', exact: true }).click();

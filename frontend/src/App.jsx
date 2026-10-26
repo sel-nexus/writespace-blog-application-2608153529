@@ -1,44 +1,18 @@
-/** Compose discovery, accounts and posts while retaining the interim administrator home. */
+/** Compose the browser-local discovery, accounts, posts and administration routes. */
 import { useEffect, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { getSession, roleHome } from './utils/auth';
-import { ProtectedRoute, sessionType } from './components/ProtectedRoute';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicNavbar } from './components/PublicNavbar';
 import { Navbar } from './components/Navbar';
-import { Avatar } from './components/Avatar';
-import { textLink } from './components/FormField';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LandingPage from './pages/LandingPage';
 import Home from './pages/Home';
 import ReadBlog from './pages/ReadBlog';
 import WriteBlog from './pages/WriteBlog';
-
-/** Keep the interim administrator identity view until the administration slice lands. @returns {JSX.Element} */
-function RoleHome({ session }) {
-  return (
-    <section className="mx-auto max-w-3xl space-y-6 py-12" aria-labelledby="home-heading">
-      <p className="text-sm font-semibold uppercase tracking-widest text-secondary">Browser-local session</p>
-      <h1 id="home-heading" className="font-display text-hero font-bold">
-        {session.role === 'admin' ? 'Administrator home' : 'Reader home'}
-      </h1>
-      <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-6 shadow-editorial">
-        <Avatar displayName={session.displayName} />
-        <div className="min-w-0 space-y-1 break-words">
-          <h2 className="font-display text-2xl font-bold">Welcome, {session.displayName}.</h2>
-          <p className="text-foreground-muted">Signed in as {session.username} · Role: {session.role}</p>
-        </div>
-      </div>
-      <p className="text-lg text-foreground-muted">
-        Your account and session are ready in this browser. Local account administration is not yet available.
-      </p>
-      {session.role === 'admin' && (
-        <Link to="/blogs" className={textLink}>Visit reader home</Link>
-      )}
-    </section>
-  );
-}
-RoleHome.propTypes = { session: sessionType.isRequired };
+import AdminDashboard from './pages/AdminDashboard';
+import UserManagement from './pages/UserManagement';
 
 /** Restore session state and update it only after accepted persistence operations. @returns {JSX.Element} */
 export default function App() {
@@ -48,7 +22,7 @@ export default function App() {
   useEffect(() => {
     const titles = {
       '/': 'Discover', '/login': 'Sign in', '/register': 'Create account',
-      '/blogs': 'Reader home', '/admin': 'Administrator home',
+      '/blogs': 'Reader home', '/admin': 'Administrator home', '/users': 'Manage Users',
     };
     document.title = `${titles[pathname] || 'Local writing demo'} | WriteSpace`;
   }, [pathname]);
@@ -65,7 +39,8 @@ export default function App() {
       <aside aria-label="Demo limitations" className="border-b border-border bg-warning-light">
         <p className="mx-auto max-w-6xl px-5 py-4 text-sm leading-relaxed text-warning sm:px-8">
           <strong>Non-secure local demo.</strong> Passwords are stored in plaintext in this browser profile.
-          Never use real passwords or sensitive data. Client-side role guards are bypassable; accounts are not shared or backed up.
+          Demo administrator credentials are hard-coded. Never use real passwords, credentials or sensitive data.
+          Client-side role guards are bypassable; accounts are not shared or backed up.
         </p>
       </aside>
       <main id="main" tabIndex={-1} className="mx-auto max-w-6xl px-5 pb-12 sm:px-8">
@@ -114,7 +89,14 @@ export default function App() {
           <Route path="/admin" element={
             <ProtectedRoute session={session} adminOnly>
               {session && (
-                <RoleHome session={session} />
+                <AdminDashboard session={session} />
+              )}
+            </ProtectedRoute>
+          } />
+          <Route path="/users" element={
+            <ProtectedRoute session={session} adminOnly>
+              {session && (
+                <UserManagement session={session} />
               )}
             </ProtectedRoute>
           } />

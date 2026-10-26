@@ -540,7 +540,7 @@ describe('fields, avatars, navigation and forms', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(screen.getByRole('heading', { name: 'Administrator home' })).toBeInTheDocument();
     expect(auth.getSession()).toEqual(auth.BUILTIN_ADMIN);
-    await userEvent.click(screen.getByRole('link', { name: 'Visit reader home' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Reader home', exact: true }));
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/blogs');
   });
 
