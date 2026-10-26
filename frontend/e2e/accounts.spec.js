@@ -11,6 +11,10 @@ async function fillAccount(page, username = 'reader-demo', displayName = 'Browse
 
 test('register, persist on reload, sign out, sign in case-insensitively and reject duplicates', async ({ page, browserErrors }) => {
   await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
+  await page.getByRole('link', { name: 'Start Reading', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
   await expect(page.getByLabel('Demo limitations')).toContainText('plaintext');
   await page.getByRole('link', { name: 'Create an account', exact: true }).click();
@@ -26,14 +30,24 @@ test('register, persist on reload, sign out, sign in case-insensitively and reje
   await expect(page.getByRole('heading', { name: 'Welcome, Browser Reader.' })).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('writespace_session')).userId)).toBe(account.id);
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
   await page.getByLabel('Username', { exact: true }).fill('READER-DEMO');
   await page.getByLabel('Password', { exact: true }).fill('x');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome, Browser Reader.' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await page.getByRole('link', { name: 'Create account', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Create account', exact: true }).click();
   await fillAccount(page, 'READER-DEMO');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('already used');
@@ -69,7 +83,9 @@ test('required login errors and invalid credentials do not sign in; actual admin
   await expect(page.getByRole('heading', { name: 'Administrator home' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('admin-session-desktop.png'), fullPage: true });
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
   expect(browserErrors).toEqual([]);
 });
 
@@ -154,7 +170,14 @@ test('mobile guest and account menus activate, close after links and support log
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
   await page.getByRole('button', { name: 'Open navigation' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Your words. Your space.' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
+  await expect(page.getByRole('button', { name: 'Open navigation' })).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open navigation' })).toHaveAttribute('aria-expanded', 'false');
   expect(browserErrors).toEqual([]);
 });

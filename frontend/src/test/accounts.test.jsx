@@ -465,7 +465,8 @@ describe('fields, avatars, navigation and forms', () => {
     remove.mockRestore();
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.getSession()).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Welcome back.' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Current route')).toHaveTextContent(/^\/$/);
+    expect(screen.getByRole('heading', { name: 'Your words. Your space.' })).toBeInTheDocument();
   });
 
   it('shows admin-only home link, updates menu state and activates admin/reader/brand navigation', async () => {
@@ -624,7 +625,25 @@ describe('fields, avatars, navigation and forms', () => {
 });
 
 describe('account app routing and session restoration', () => {
-  it.each(['/login', '/register', '/'])('redirects a restored admin from public entry %s', (path) => {
+  it.each(['guest', 'user', 'admin'])('keeps %s entry at / on the public landing without changing its session', (role) => {
+    const identity = role === 'guest' ? null : role === 'admin' ? auth.BUILTIN_ADMIN : session;
+    if (identity) auth.setSession(identity);
+    const storedSession = localStorage.getItem('writespace_session');
+    mount(
+      <App />, '/',
+    );
+    expect(screen.getByLabelText('Current route')).toHaveTextContent(/^\/$/);
+    expect(screen.getByRole('heading', { name: 'Your words. Your space.' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Simple by design. Local by nature.' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Latest local stories' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Welcome back.' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: role === 'guest' ? 'Start Reading' : role === 'admin' ? 'Go to Admin Home' : 'Go to Reader Home' }))
+      .toHaveAttribute('href', role === 'guest' ? '/login' : role === 'admin' ? '/admin' : '/blogs');
+    expect(auth.getSession()).toEqual(identity);
+    expect(localStorage.getItem('writespace_session')).toBe(storedSession);
+  });
+
+  it.each(['/login', '/register'])('redirects a restored admin from account entry %s', (path) => {
     auth.setSession(auth.BUILTIN_ADMIN);
     mount(
       <App />, path,
@@ -633,7 +652,7 @@ describe('account app routing and session restoration', () => {
     expect(screen.getByRole('heading', { name: 'Administrator home' })).toBeInTheDocument();
   });
 
-  it.each(['/login', '/register', '/', '/admin', '/unknown'])('redirects a restored user from entry %s to reader home', (path) => {
+  it.each(['/login', '/register', '/admin', '/unknown'])('redirects a restored user from entry %s to reader home', (path) => {
     auth.setSession(session);
     mount(
       <App />, path,
@@ -642,7 +661,7 @@ describe('account app routing and session restoration', () => {
     expect(screen.getByRole('heading', { name: 'Reader home' })).toBeInTheDocument();
   });
 
-  it.each(['/', '/blogs', '/admin', '/unknown'])('redirects guest entry %s to sign-in', (path) => {
+  it.each(['/blogs', '/admin', '/unknown'])('redirects guest entry %s to sign-in', (path) => {
     mount(
       <App />, path,
     );

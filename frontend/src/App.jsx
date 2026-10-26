@@ -1,4 +1,4 @@
-/** Compose only account routes and a usable interim role home, with local session state. */
+/** Compose public discovery, account routes and interim role homes with local session state. */
 import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { getSession, roleHome } from './utils/auth';
@@ -9,6 +9,7 @@ import { Avatar } from './components/Avatar';
 import { textLink } from './components/FormField';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import LandingPage from './pages/LandingPage';
 
 /** Show the persisted identity without inventing later blog or administration pages. @returns {JSX.Element} */
 function RoleHome({ session }) {
@@ -42,7 +43,10 @@ export default function App() {
   const { pathname } = useLocation();
   const entry = session ? roleHome(session) : '/login';
   useEffect(() => {
-    const titles = { '/login': 'Sign in', '/register': 'Create account', '/blogs': 'Reader home', '/admin': 'Administrator home' };
+    const titles = {
+      '/': 'Discover', '/login': 'Sign in', '/register': 'Create account',
+      '/blogs': 'Reader home', '/admin': 'Administrator home',
+    };
     document.title = `${titles[pathname] || 'Local writing demo'} | WriteSpace`;
   }, [pathname]);
   return (
@@ -64,7 +68,7 @@ export default function App() {
       <main id="main" tabIndex={-1} className="mx-auto max-w-6xl px-5 pb-12 sm:px-8">
         <Routes>
           <Route path="/" element={
-            <Navigate to={entry} replace />
+            <LandingPage session={session} />
           } />
           <Route path="/login" element={session ? (
             <Navigate to={entry} replace />

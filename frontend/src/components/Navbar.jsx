@@ -1,5 +1,5 @@
 /** Present role-aware links and honest, activation-only local sign-out. */
-import { useState } from 'react';
+import { startTransition, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { clearSession, roleHome } from '../utils/auth';
@@ -20,9 +20,12 @@ export function Navbar({ session, onSessionChange }) {
       setError(result.error.message);
       return;
     }
-    onSessionChange(null);
-    setOpen(false);
-    navigate('/', { replace: true });
+    // Commit guest state and the public destination together so the guard cannot redirect first.
+    startTransition(() => {
+      onSessionChange(null);
+      setOpen(false);
+      navigate('/', { replace: true });
+    });
   }
 
   return (
