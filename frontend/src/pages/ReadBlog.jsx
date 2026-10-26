@@ -2,25 +2,30 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getSession } from '../utils/auth';
-import { deletePost, getPosts } from '../utils/storage';
+import { deletePost, readPosts } from '../utils/storage';
 import { canManagePost } from '../utils/permissions';
 import { formatPostDate } from '../utils/posts';
 import { Avatar } from '../components/Avatar';
 import { sessionType } from '../components/ProtectedRoute';
 import { textLink } from '../components/FormField';
 
-/** Show a missing state or the complete local post. @returns {JSX.Element} */
+/** Disclose read failures, distinguish missing posts, or show complete local text. @returns {JSX.Element} */
 export default function ReadBlog({ session }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const post = getPosts().find((record) => record.id === id);
+  const posts = readPosts();
+  const post = posts.ok ? posts.value.find((record) => record.id === id) : null;
   const [error, setError] = useState('');
 
   /** Re-read permissions before confirming; cancellation never writes or navigates. */
   function requestDelete() {
     const actor = getSession();
-    const posts = getPosts();
-    const current = posts.find((record) => record.id === id);
+    const posts = readPosts();
+    if (!posts.ok) {
+      setError(posts.error.message);
+      return;
+    }
+    const current = posts.value.find((record) => record.id === id);
     if (!current || !canManagePost(actor, current)) {
       setError(current ? 'This post cannot be deleted by this account.' : 'Post not found');
       return;
@@ -37,7 +42,10 @@ export default function ReadBlog({ session }) {
   if (!post) {
     return (
       <section className="space-y-6 py-12">
-        <h1 className="font-display text-4xl font-bold">Post not found</h1>
+        <h1 className="font-display text-4xl font-bold">{posts.ok ? 'Post not found' : 'Local data unavailable'}</h1>
+        {!posts.ok && (
+          <p role="alert" className="text-error">{posts.error.message}</p>
+        )}
         <Link to="/blogs" className={textLink}>Back to blogs</Link>
       </section>
     );

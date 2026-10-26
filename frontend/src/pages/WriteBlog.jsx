@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { getSession } from '../utils/auth';
-import { createPost, getPosts, requiredText, updatePost } from '../utils/storage';
+import { createPost, readPosts, requiredText, updatePost } from '../utils/storage';
 import { canManagePost } from '../utils/permissions';
 import { sessionType } from '../components/ProtectedRoute';
 import { FormField, primaryButton, textLink } from '../components/FormField';
@@ -11,7 +11,8 @@ import { FormField, primaryButton, textLink } from '../components/FormField';
 export default function WriteBlog({ session }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const post = id ? getPosts().find((record) => record.id === id) : null;
+  const posts = id ? readPosts() : null;
+  const post = posts?.ok ? posts.value.find((record) => record.id === id) : null;
   const [title, setTitle] = useState(post?.title || '');
   const [content, setContent] = useState(post?.content || '');
   const [errors, setErrors] = useState({});
@@ -42,7 +43,10 @@ export default function WriteBlog({ session }) {
   if (id && !post) {
     return (
       <section className="space-y-6 py-12">
-        <h1 className="font-display text-4xl font-bold">Post not found</h1>
+        <h1 className="font-display text-4xl font-bold">{posts.ok ? 'Post not found' : 'Local data unavailable'}</h1>
+        {!posts.ok && (
+          <p role="alert" className="text-error">{posts.error.message}</p>
+        )}
         <Link to="/blogs" className={textLink}>Back to blogs</Link>
       </section>
     );

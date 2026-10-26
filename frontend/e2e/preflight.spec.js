@@ -32,6 +32,71 @@ async function capture(page, info, name) {
   console.log(`PREFLIGHT ${name} ${JSON.stringify(styles)}`);
 }
 
+/** Tab to the next real control and retain computed, visible keyboard-focus evidence. */
+async function tabTo(page, control, name, evidence) {
+  const unfocusedShadow = await control.evaluate((element) => getComputedStyle(element).boxShadow);
+  await page.keyboard.press('Tab');
+  await expect(control).toBeFocused();
+  await expect(page.locator(':focus')).toHaveAccessibleName(name);
+  await expect(control).toBeVisible();
+  const focus = await control.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      focusVisible: element.matches(':focus-visible'),
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+      outlineColor: style.outlineColor,
+      boxShadow: style.boxShadow,
+      opacity: style.opacity,
+    };
+  });
+  const visibleColor = (color) => color !== 'transparent' && !/rgba\([^)]*,\s*0(?:\.0+)?\)$/.test(color);
+  const outline = !['none', 'hidden'].includes(focus.outlineStyle)
+    && parseFloat(focus.outlineWidth) > 0 && visibleColor(focus.outlineColor);
+  const ring = focus.boxShadow !== 'none' && focus.boxShadow !== unfocusedShadow
+    && /[1-9]\d*(?:\.\d+)?px/.test(focus.boxShadow)
+    && (focus.boxShadow.match(/rgba?\([^)]+\)/g) || []).some(visibleColor);
+  expect(focus.focusVisible, `${name} matches :focus-visible`).toBe(true);
+  expect(Number(focus.opacity), `${name} is not transparent`).toBeGreaterThan(0);
+  expect(outline || ring, `${name} has a nontransparent outline or keyboard ring: ${JSON.stringify(focus)}`).toBe(true);
+  evidence.push({ name, ...focus });
+}
+
+test('mobile login keyboard traversal shows focus and activates navigation and form controls', async ({ page, browserErrors }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  const evidence = [];
+  await tabTo(page, page.getByRole('link', { name: 'Skip to content', exact: true }), 'Skip to content', evidence);
+  await tabTo(page, page.getByRole('link', { name: 'WriteSpace.', exact: true }), 'WriteSpace.', evidence);
+  await tabTo(page, page.getByRole('button', { name: 'Open navigation', exact: true }), 'Open navigation', evidence);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Close navigation', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('link', { name: 'Create account', exact: true })).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('button', { name: 'Open navigation', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('link', { name: 'Create account', exact: true })).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Close navigation', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Close navigation', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  await tabTo(page, page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Sign in', exact: true }), 'Sign in', evidence);
+  await tabTo(page, page.getByRole('link', { name: 'Create account', exact: true }), 'Create account', evidence);
+  await tabTo(page, page.getByLabel('Username', { exact: true }), 'Username', evidence);
+  await tabTo(page, page.getByLabel('Password', { exact: true }), 'Password', evidence);
+  await tabTo(page, page.getByRole('button', { name: 'Sign in', exact: true }), 'Sign in', evidence);
+  await page.keyboard.press('Space');
+  await expect(page.getByLabel('Username', { exact: true })).toHaveAccessibleDescription('Username is required.');
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAccessibleDescription('Password is required.');
+  expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
+  await tabTo(page, page.getByRole('link', { name: 'Create an account', exact: true }), 'Create an account', evidence);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole('heading', { name: 'Create your account.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open navigation', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await info.attach('login-keyboard-focus.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+  expect(browserErrors).toEqual([]);
+});
+
 for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
   test(`public semantics and form errors at ${viewport.width}px`, async ({ page, browserErrors }, info) => {
     await page.setViewportSize(viewport);

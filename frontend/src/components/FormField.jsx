@@ -19,6 +19,7 @@ export function FormField({ id, label, value, onChange, type = 'text', autoCompl
       <input
         id={id}
         name={id}
+        aria-label={label}
         type={type}
         value={value}
         onChange={onChange}

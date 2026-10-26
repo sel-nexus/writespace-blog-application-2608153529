@@ -28,8 +28,14 @@ test('register, persist on reload, sign out, sign in case-insensitively and reje
   expect(account).toMatchObject({ displayName: 'Browser Reader', username: 'reader-demo', role: 'user', password: 'x' });
   expect(account.id).toMatch(/^[0-9a-f-]{36}$/);
   expect(new Date(account.createdAt).toISOString()).toBe(account.createdAt);
+  const accountBytes = await page.evaluate(() => ({
+    users: localStorage.getItem('writespace_users'), session: localStorage.getItem('writespace_session'),
+  }));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome, Browser Reader.' })).toBeVisible();
+  expect(await page.evaluate(() => ({
+    users: localStorage.getItem('writespace_users'), session: localStorage.getItem('writespace_session'),
+  }))).toEqual(accountBytes);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('writespace_session')).userId)).toBe(account.id);
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -123,29 +129,44 @@ for (const path of ['/blogs', '/admin']) {
 for (const path of ['/admin', '/login', '/register']) {
   test(`previously signed-in reader direct entry at ${path} restores role and denies admin access`, async ({ page, browserErrors }) => {
     // Synthetic persisted session represents an existing browser profile; interactive auth is exercised above.
-    await page.addInitScript(() => {
+    const marker = `writespace_e2e_reader_seed_${test.info().testId}`;
+    await page.addInitScript((marker) => {
+      if (sessionStorage.getItem(marker)) return;
       localStorage.setItem('writespace_session', JSON.stringify({
         userId: 'persisted-reader', username: 'reader-local', displayName: 'Restored Reader', role: 'user',
       }));
-    });
+      sessionStorage.setItem(marker, 'seeded');
+    }, marker);
     await page.goto(path);
     await expect(page).toHaveURL(/\/blogs$/);
     await expect(page.getByRole('heading', { name: 'Welcome, Restored Reader.' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Admin home', exact: true })).toHaveCount(0);
+    const sessionRaw = await page.evaluate(() => localStorage.getItem('writespace_session'));
+    expect(sessionRaw).toBe(JSON.stringify({
+      userId: 'persisted-reader', username: 'reader-local', displayName: 'Restored Reader', role: 'user',
+    }));
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Reader home', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBe(sessionRaw);
     expect(browserErrors).toEqual([]);
   });
 }
 
 test('corrupt direct-entry session fails closed without being repaired', async ({ page, browserErrors }) => {
-  await page.addInitScript(() => localStorage.setItem('writespace_session', '{'));
+  const marker = `writespace_e2e_corrupt_session_seed_${test.info().testId}`;
+  await page.addInitScript((marker) => {
+    if (sessionStorage.getItem(marker)) return;
+    localStorage.setItem('writespace_session', '{');
+    sessionStorage.setItem(marker, 'seeded');
+  }, marker);
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBe('{');
+  const sessionRaw = await page.evaluate(() => localStorage.getItem('writespace_session'));
+  expect(sessionRaw).toBe('{');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBe(sessionRaw);
   expect(browserErrors).toEqual([]);
 });
 

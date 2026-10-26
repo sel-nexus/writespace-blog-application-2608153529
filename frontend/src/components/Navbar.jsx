@@ -1,7 +1,7 @@
 /** Present role-aware links and honest, activation-only local sign-out. */
-import { startTransition, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { clearSession, roleHome } from '../utils/auth';
 import { Avatar } from './Avatar';
 import { sessionType } from './ProtectedRoute';
@@ -12,6 +12,8 @@ export function Navbar({ session, onSessionChange }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   /** Remove the session only after the user activates sign-out. */
   function logout() {

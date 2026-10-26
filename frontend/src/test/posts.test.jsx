@@ -170,6 +170,19 @@ describe('updatePost and deletePost persisted Result contracts', () => {
       expect(persisted()).toEqual([post]);
     });
 
+  it.each(['postId', 'title', 'content'])('rejects independently omitted %s with valid remaining fields and unchanged bytes', (field) => {
+    savePosts([post, companion]);
+    const before = localStorage.getItem('writespace_posts');
+    const value = { postId: post.id, ...input };
+    delete value[field];
+    const writes = vi.spyOn(Storage.prototype, 'setItem');
+    expect(updatePost(value, session)).toEqual({
+      ok: false, error: { code: 'invalid', message: 'Post ID, title and content are required.' },
+    });
+    expect(writes).not.toHaveBeenCalled();
+    expect(localStorage.getItem('writespace_posts')).toBe(before);
+  });
+
   it.each([null, {}, { confirmed: true }, { postId: ' ', confirmed: true }, { postId: post.id },
     { postId: post.id, confirmed: 'true' }, { postId: post.id, confirmed: 1 }, { postId: [], confirmed: false }])
     ('rejects invalid delete %j without writing', (value) => {
@@ -329,6 +342,58 @@ describe('post collection and reader components', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Back to blogs' }));
     expect(route()).toBe('/blogs');
     expect(persisted()).toEqual([post]);
+  });
+
+  describe.each([`/blog/${post.id}`, `/edit/${post.id}`])('failed initial lookup at %s', (path) => {
+    it.each([
+      ['{private body', 'Browser-local data could not be read. It has not been changed.'],
+      ['{"private":"body"}', 'Browser-local data has an unsupported format. It has not been changed.'],
+    ])('discloses corrupt data %s without mutation or confirmation and activates the back link', async (raw, message) => {
+      localStorage.setItem('writespace_posts', raw);
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mount(path);
+      const writes = vi.spyOn(Storage.prototype, 'setItem');
+      expect(screen.getByRole('heading', { name: 'Local data unavailable', exact: true })).toBeInTheDocument();
+      expect(screen.getByRole('alert').textContent).toBe(message);
+      expect(screen.queryByRole('heading', { name: 'Post not found', exact: true })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('form')).not.toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('private');
+      expect(route()).toBe(path);
+      expect(localStorage.getItem('writespace_posts')).toBe(raw);
+      await userEvent.click(screen.getByRole('link', { name: 'Back to blogs' }));
+      expect(route()).toBe('/blogs');
+      expect(localStorage.getItem('writespace_posts')).toBe(raw);
+      expect(writes).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('discloses denied getItem without leaking the exception, writing, or confirming and activates the back link', async () => {
+      savePosts([post, companion]);
+      const original = Storage.prototype.getItem;
+      const before = original.call(localStorage, 'writespace_posts');
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function getItem(key) {
+        if (key === 'writespace_posts') throw new DOMException('private body must not leak', 'SecurityError');
+        return original.call(this, key);
+      });
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mount(path);
+      const writes = vi.spyOn(Storage.prototype, 'setItem');
+      expect(screen.getByRole('heading', { name: 'Local data unavailable', exact: true })).toBeInTheDocument();
+      expect(screen.getByRole('alert').textContent)
+        .toBe('Browser-local data is unavailable. Check your browser storage settings.');
+      expect(screen.queryByRole('heading', { name: 'Post not found', exact: true })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('form')).not.toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('private body');
+      expect(route()).toBe(path);
+      expect(original.call(localStorage, 'writespace_posts')).toBe(before);
+      await userEvent.click(screen.getByRole('link', { name: 'Back to blogs' }));
+      expect(route()).toBe('/blogs');
+      expect(original.call(localStorage, 'writespace_posts')).toBe(before);
+      expect(writes).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+    });
   });
 
   it('allows reading another author but hides management controls and redirects a direct forbidden edit', () => {
@@ -497,6 +562,65 @@ describe('activated writing and deleting journeys', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete', exact: true }));
     expect(route()).toBe('/blogs');
     expect(persisted()).toEqual([companion]);
+  });
+
+  it.each([
+    ['{private body', 'Browser-local data could not be read. It has not been changed.'],
+    ['{"private":"body"}', 'Browser-local data has an unsupported format. It has not been changed.'],
+  ])('refuses deletion after corruption %s without confirming or changing corrupt bytes', async (raw, message) => {
+    savePosts([post]);
+    mount(`/blog/${post.id}`);
+    expect(screen.getByTestId('post-content').textContent).toBe(post.content);
+    localStorage.setItem('writespace_posts', raw);
+    const writes = vi.spyOn(Storage.prototype, 'setItem');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Delete', exact: true }));
+    expect(screen.getByRole('heading', { name: 'Local data unavailable', exact: true })).toBeInTheDocument();
+    expect(screen.getByRole('alert').textContent).toBe(message);
+    expect(screen.queryByRole('heading', { name: 'Post not found', exact: true })).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('private');
+    expect(route()).toBe(`/blog/${post.id}`);
+    expect(localStorage.getItem('writespace_posts')).toBe(raw);
+    await userEvent.click(screen.getByRole('link', { name: 'Back to blogs' }));
+    expect(route()).toBe('/blogs');
+    expect(localStorage.getItem('writespace_posts')).toBe(raw);
+    expect(writes).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it.each(['persistent', 'one-shot'])('refuses deletion on %s post-read denial before confirmation or mutation', async (boundary) => {
+    savePosts([post, companion]);
+    mount(`/blog/${post.id}`);
+    expect(screen.getByTestId('post-content').textContent).toBe(post.content);
+    const original = Storage.prototype.getItem;
+    const before = original.call(localStorage, 'writespace_posts');
+    let denied = false;
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function getItem(key) {
+      if (key === 'writespace_posts' && (boundary === 'persistent' || !denied)) {
+        denied = true;
+        throw new DOMException('private body must not leak', 'SecurityError');
+      }
+      return original.call(this, key);
+    });
+    const writes = vi.spyOn(Storage.prototype, 'setItem');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Delete', exact: true }));
+    expect(screen.getByRole('alert').textContent)
+      .toBe('Browser-local data is unavailable. Check your browser storage settings.');
+    expect(screen.queryByRole('heading', { name: 'Post not found', exact: true })).not.toBeInTheDocument();
+    if (boundary === 'persistent') {
+      expect(screen.getByRole('heading', { name: 'Local data unavailable', exact: true })).toBeInTheDocument();
+    } else {
+      expect(screen.getByTestId('post-content').textContent).toBe(post.content);
+    }
+    expect(document.body.textContent).not.toContain('private body');
+    expect(route()).toBe(`/blog/${post.id}`);
+    expect(original.call(localStorage, 'writespace_posts')).toBe(before);
+    await userEvent.click(screen.getByRole('link', { name: 'Back to blogs' }));
+    expect(route()).toBe('/blogs');
+    expect(original.call(localStorage, 'writespace_posts')).toBe(before);
+    expect(writes).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   it('keeps the reader and post intact after confirmed delete storage failure', async () => {

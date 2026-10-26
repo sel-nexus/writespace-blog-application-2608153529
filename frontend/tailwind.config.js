@@ -18,7 +18,7 @@ export default {
         success: { DEFAULT: '#225e41', light: '#e6f0e8' },
       },
       fontFamily: {
-        sans: ['Source Sans 3', 'sans-serif'],
+        sans: ['"Source Sans 3"', 'sans-serif'],
         display: ['Playfair Display', 'serif'],
       },
       fontSize: { hero: ['clamp(2.5rem, 5vw, 4.5rem)', { lineHeight: '1.08', letterSpacing: '-0.035em' }] },

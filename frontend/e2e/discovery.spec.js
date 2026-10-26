@@ -11,11 +11,14 @@ const posts = [
   { id: 'equal-b', title: 'Equal second', content: 'Equal second plain text.', createdAt: '2026-01-01T00:00:00Z', authorId: 'reader-id', authorName: 'Local Reader' },
 ];
 
-/** Seed only the approved browser-local key before entering the app. */
+/** Seed an existing profile once per test; reload must read real persisted bytes. */
 async function seedPosts(page, value = posts) {
-  await page.addInitScript((records) => {
+  const marker = `writespace_e2e_discovery_seed_${test.info().testId}`;
+  await page.addInitScript(({ records, marker }) => {
+    if (sessionStorage.getItem(marker)) return;
     localStorage.setItem('writespace_posts', JSON.stringify(records));
-  }, value);
+    sessionStorage.setItem(marker, 'seeded');
+  }, { records: value, marker });
 }
 
 const latest = (page) => page.getByRole('region', { name: 'Latest local stories' });
@@ -33,9 +36,11 @@ test('local latest-three previews are ordered, escaped, persisted and guest prev
   await expect(stories.getByRole('article').first()).toContainText('Jan 1, 2027');
   await expect(stories.getByRole('article').first()).toContainText('<svg onload=alert(2)>');
   await expect(stories.locator('script, img, svg')).toHaveCount(0);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('writespace_posts')))).toEqual(posts);
+  const postsRaw = await page.evaluate(() => localStorage.getItem('writespace_posts'));
+  expect(postsRaw).toBe(JSON.stringify(posts));
   await page.reload();
   await expect(stories.getByRole('heading', { level: 3 })).toHaveText(['<script>alert(1)</script>', 'Equal first', 'Equal second']);
+  expect(await page.evaluate(() => localStorage.getItem('writespace_posts'))).toBe(postsRaw);
   await stories.getByRole('link', { name: '<script>alert(1)</script>', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();

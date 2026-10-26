@@ -261,13 +261,36 @@ describe('account creation and auth results', () => {
     { username: 'unknown', password: 'password-secret' }, { username: 'Reader', password: 'wrong' }])(
     'rejects invalid login %j without creating a session or leaking input', (input) => {
       storage.saveUsers([user]);
+      const usersRaw = localStorage.getItem('writespace_users');
+      const sessionRaw = localStorage.getItem('writespace_session');
       const result = auth.login(input);
       expect(result.ok).toBe(false);
       expect(result.error.code).toBe('invalid');
       expect(result.error.message).not.toMatch(/password-secret|Reader|unknown|wrong|admin\/admin/);
       expect(auth.getSession()).toBeNull();
+      expect(localStorage.getItem('writespace_users')).toBe(usersRaw);
+      expect(localStorage.getItem('writespace_session')).toBe(sessionRaw);
     },
   );
+
+  it.each(['username', 'password'].flatMap((field) => [
+    [field, 'omitted', undefined], [field, 'null', null], [field, 'number', 7],
+    [field, 'boolean', false], [field, 'object', {}], [field, 'array', []],
+  ]))('rejects login with %s %s while preserving users and session bytes', (field, kind, value) => {
+    const input = { username: user.username, password: user.password };
+    if (kind === 'omitted') delete input[field];
+    else input[field] = value;
+    const usersRaw = JSON.stringify([user], null, 2);
+    const sessionRaw = JSON.stringify(session, null, 2);
+    localStorage.setItem('writespace_users', usersRaw);
+    localStorage.setItem('writespace_session', sessionRaw);
+
+    expect(auth.login(input)).toEqual({
+      ok: false, error: { code: 'invalid', message: 'Username and password are required.' },
+    });
+    expect(localStorage.getItem('writespace_users')).toBe(usersRaw);
+    expect(localStorage.getItem('writespace_session')).toBe(sessionRaw);
+  });
 
   it('does not log in when session persistence fails for built-in or local account', () => {
     storage.saveUsers([user]);
@@ -286,17 +309,37 @@ describe('account creation and auth results', () => {
     expect(auth.getSession()).toEqual({ userId: account.id, username: 'Writer', displayName: 'Demo Writer', role: 'user' });
   });
 
-  it.each(['displayName', 'username', 'password', 'confirmPassword'])('rejects missing registration field %s before saving', (field) => {
+  it.each(['displayName', 'username', 'password', 'confirmPassword'].flatMap((field) => [
+    [field, 'omitted', undefined], [field, 'null', null], [field, 'number', 7],
+    [field, 'boolean', false], [field, 'object', {}], [field, 'array', []],
+  ]))('rejects registration with %s %s while preserving users and session bytes', (field, kind, value) => {
     const input = { ...registration };
-    delete input[field];
-    expect(auth.register(input).error.code).toBe('invalid');
-    expect(localStorage.length).toBe(0);
+    if (kind === 'omitted') delete input[field];
+    else input[field] = value;
+    const usersRaw = JSON.stringify([user], null, 2);
+    const sessionRaw = JSON.stringify(session, null, 2);
+    localStorage.setItem('writespace_users', usersRaw);
+    localStorage.setItem('writespace_session', sessionRaw);
+
+    expect(auth.register(input)).toEqual({
+      ok: false, error: { code: 'invalid', message: 'All registration fields are required.' },
+    });
+    expect(localStorage.getItem('writespace_users')).toBe(usersRaw);
+    expect(localStorage.getItem('writespace_session')).toBe(sessionRaw);
   });
 
   it('rejects null registration and password mismatch without persisting anything', () => {
-    expect(auth.register(null).ok).toBe(false);
-    expect(auth.register({ ...registration, confirmPassword: 'different' }).error.message).toBe('Passwords do not match.');
-    expect(localStorage.length).toBe(0);
+    for (const [input, message] of [
+      [null, 'All registration fields are required.'],
+      [{ ...registration, confirmPassword: 'different' }, 'Passwords do not match.'],
+    ]) {
+      const usersRaw = localStorage.getItem('writespace_users');
+      const sessionRaw = localStorage.getItem('writespace_session');
+      expect(auth.register(input)).toEqual({ ok: false, error: { code: 'invalid', message } });
+      expect(localStorage.getItem('writespace_users')).toBe(usersRaw);
+      expect(localStorage.getItem('writespace_session')).toBe(sessionRaw);
+      expect(localStorage.length).toBe(0);
+    }
   });
 
   it('stops after account-save failure without claiming a partial result or signing in', () => {

@@ -1,6 +1,6 @@
 /** Present activated guest navigation with a responsive disclosure menu. */
-import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 
 export const navControl = 'min-h-11 rounded-full px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -12,6 +12,8 @@ export function navClass({ isActive }) {
 /** Render guest links; toggling never navigates until a link is activated. @returns {JSX.Element} */
 export function PublicNavbar() {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  useEffect(() => { setOpen(false); }, [pathname]);
   return (
     <header className="border-b border-border bg-surface">
       <nav aria-label="Main navigation" className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
